@@ -185,7 +185,7 @@ export function BiometricVerification({
         biometricData = 'simulated-fingerprint-data-' + Date.now();
       }
       
-      // API call to verify
+      // API call to verify biometric data
       const response = await apiRequest('POST', '/api/verification/biometric', {
         biometricType: selectedMethod,
         biometricData
@@ -198,7 +198,7 @@ export function BiometricVerification({
         
         toast({
           title: selectedMethod === 'fingerprint' ? "Fingerprint Verified" : "Face ID Verified",
-          description: "Your biometric verification has been successful.",
+          description: "Your biometric verification has been successful. Please click 'Complete & Continue' to proceed.",
         });
         
         // Stop camera if it was active
@@ -235,17 +235,57 @@ export function BiometricVerification({
     }
   };
 
-  const handleManualVerification = () => {
-    setIsVerified(true);
-    toast({
-      title: "Manual Verification Complete",
-      description: "Your identity has been verified through the manual process.",
-    });
+  const handleManualVerification = async () => {
+    try {
+      // Simulate verification with the API 
+      const biometricData = 'manual-verification-' + Date.now();
+      const verifyResponse = await apiRequest('POST', '/api/verification/biometric', {
+        biometricType: 'manual',
+        biometricData
+      });
+      
+      if (verifyResponse.ok) {
+        setIsVerified(true);
+        toast({
+          title: "Manual Verification Complete",
+          description: "Your identity has been verified through the manual process. Click 'Complete & Continue' to proceed.",
+        });
+      } else {
+        throw new Error("Manual verification failed");
+      }
+    } catch (error) {
+      console.error("Manual verification error:", error);
+      toast({
+        title: "Verification Failed",
+        description: "Could not complete manual verification. Please try again or contact support.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleComplete = () => {
+  const handleComplete = async () => {
     if (isVerified) {
-      onVerificationComplete();
+      try {
+        // Call the API to mark the biometric step as complete and move to the next step
+        const response = await apiRequest('POST', '/api/verification/step/biometric', {});
+        
+        if (response.ok) {
+          toast({
+            title: "Biometric Verification Complete",
+            description: "Moving to the next verification step.",
+          });
+          onVerificationComplete();
+        } else {
+          throw new Error("Failed to complete verification step");
+        }
+      } catch (error) {
+        console.error("Error completing biometric step:", error);
+        toast({
+          title: "Verification Failed",
+          description: "Could not complete the verification step. Please try again.",
+          variant: "destructive",
+        });
+      }
     } else {
       toast({
         title: "Verification Required",
