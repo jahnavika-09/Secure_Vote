@@ -95,9 +95,11 @@ export function BiometricVerification({
   const takeFaceSnapshot = () => {
     if (videoRef.current && canvasRef.current) {
       const context = canvasRef.current.getContext('2d');
-      if (context) {
+      if (context && videoRef.current.readyState >= 2) { // Only draw if video is loaded
         context.drawImage(videoRef.current, 0, 0, 300, 225);
         return true;
+      } else {
+        console.log("Video not ready for capture, readyState:", videoRef.current.readyState);
       }
     }
     return false;
@@ -168,10 +170,32 @@ export function BiometricVerification({
     const cameraStarted = await startCamera();
     if (!cameraStarted) return;
     
-    setTimeout(() => {
-      setShowInstructions(false);
-      setIsScanning(true);
-    }, 3000);
+    // Give more time for camera to initialize and create a video ready promise
+    const videoReadyPromise = new Promise<void>((resolve) => {
+      if (videoRef.current) {
+        // If video is already ready
+        if (videoRef.current.readyState >= 2) {
+          resolve();
+        } else {
+          // Otherwise wait for it to be ready
+          videoRef.current.onloadeddata = () => {
+            console.log("Video data loaded");
+            resolve();
+          };
+        }
+      }
+      
+      // Fallback timeout in case onloadeddata doesn't fire
+      setTimeout(() => {
+        console.log("Video ready timeout fallback");
+        resolve();
+      }, 3000);
+    });
+    
+    // Wait for video ready and then show scanning UI
+    await videoReadyPromise;
+    setShowInstructions(false);
+    setIsScanning(true);
   };
 
   const completeBiometricScan = async () => {
@@ -179,8 +203,19 @@ export function BiometricVerification({
       // Prepare data for verification
       let biometricData;
       if (selectedMethod === 'face' && canvasRef.current) {
-        takeFaceSnapshot();
-        biometricData = canvasRef.current.toDataURL('image/png');
+        // Check if video is ready before taking snapshot
+        if (videoRef.current && videoRef.current.readyState >= 2) {
+          const success = takeFaceSnapshot();
+          if (success) {
+            biometricData = canvasRef.current.toDataURL('image/png');
+          } else {
+            console.error("Failed to take face snapshot");
+            biometricData = 'simulated-face-scan-' + Date.now(); // Fallback to simulation for demo
+          }
+        } else {
+          console.warn("Video not ready, using simulated data");
+          biometricData = 'simulated-face-scan-' + Date.now();
+        }
       } else {
         biometricData = 'simulated-fingerprint-data-' + Date.now();
       }
@@ -485,6 +520,7 @@ export function BiometricVerification({
                     className="h-full w-full object-cover rounded-lg"
                     autoPlay 
                     playsInline
+                    onLoadedMetadata={() => console.log("Video loaded and ready")}
                   />
                 ) : (
                   <Camera className="text-neutral-400" size={80} />
