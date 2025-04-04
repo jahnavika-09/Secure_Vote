@@ -551,6 +551,18 @@ function VerificationPageContent({
               {/* Verification Status Card */}
               <VerificationStatusComponent verificationStatus={verificationStatus} />
               
+              {/* Restart Button */}
+              <Button 
+                variant="destructive" 
+                className="w-full mt-4"
+                onClick={() => {
+                  logoutMutation.mutate();
+                  navigate("/auth");
+                }}
+              >
+                Restart Verification Process
+              </Button>
+              
               {/* Need Help Card */}
               <HelpCard />
             </div>
