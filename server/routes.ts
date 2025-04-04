@@ -118,9 +118,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     
     const { step } = req.params;
+    const uppercaseStep = step.toUpperCase();
     
     // Validate step parameter
-    if (!Object.values(VerificationSteps).includes(step as any)) {
+    if (!Object.values(VerificationSteps).includes(uppercaseStep as any)) {
       return res.status(400).json({ message: "Invalid verification step" });
     }
     
@@ -139,7 +140,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       // Validate step sequence
       const currentStepIndex = Object.values(VerificationSteps).indexOf(latestSession.step as any);
-      const requestedStepIndex = Object.values(VerificationSteps).indexOf(step as any);
+      const requestedStepIndex = Object.values(VerificationSteps).indexOf(uppercaseStep as any);
       
       if (requestedStepIndex !== currentStepIndex + 1) {
         return res.status(400).json({ 
@@ -165,7 +166,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Create the next verification step
       const newSession = await storage.createVerificationSession({
         userId: req.user!.id,
-        step,
+        step: uppercaseStep,
         status: VerificationStatus.IN_PROGRESS,
         blockchainRef: block.hash
       });
