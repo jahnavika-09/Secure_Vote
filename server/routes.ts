@@ -423,6 +423,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Get user's verification sessions
       const sessions = await storage.getVerificationSessionsByUserId(req.user!.id);
+
+      // Mark all existing sessions as archived before creating a new one
+      if (sessions.length > 0) {
+        // Just update the most recent session as this is typically what's displayed
+        await storage.updateVerificationSession(sessions[0].id, {
+          status: 'archived' as any
+        });
+      }
       
       // Create a new reset block in the blockchain
       const blockchain = await Blockchain.getInstance();
@@ -448,6 +456,56 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error("Error resetting verification:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  // Special endpoint to restart biometric verification specifically
+  app.post("/api/verification/restart-biometric", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      // Get user's verification sessions
+      const sessions = await storage.getVerificationSessionsByUserId(req.user!.id);
+      
+      if (sessions.length === 0) {
+        return res.status(400).json({
+          message: "No verification sessions found."
+        });
+      }
+      
+      // Mark the current session as archived
+      const latestSession = sessions[0];
+      await storage.updateVerificationSession(latestSession.id, {
+        status: 'archived' as any
+      });
+      
+      // Create a new blockchain record for this operation
+      const blockchain = await Blockchain.getInstance();
+      const block = await blockchain.addBlock({
+        type: "verification_biometric_restart",
+        userId: req.user!.id,
+        timestamp: Math.floor(Date.now() / 1000),
+        reason: "Biometric verification restarted"
+      });
+      
+      // Create a new biometric verification session
+      const newSession = await storage.createVerificationSession({
+        userId: req.user!.id,
+        step: VerificationSteps.BIOMETRIC,
+        status: VerificationStatus.IN_PROGRESS,
+        blockchainRef: block.hash
+      });
+      
+      res.status(201).json({
+        success: true,
+        message: "Biometric verification has been restarted",
+        session: newSession
+      });
+    } catch (error) {
+      console.error("Error restarting biometric verification:", error);
       res.status(500).json({ message: "Server error" });
     }
   });

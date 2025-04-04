@@ -74,12 +74,13 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
   });
 
   // Automatic reset on application start
-  useEffect(() => {
-    // Only run once when the component is mounted and user is logged in
-    if (voterProfile && !isLoadingSessions) {
-      resetVerificationMutation.mutate();
-    }
-  }, [voterProfile]); // Only depend on voterProfile to ensure this runs just once when profile is loaded
+  // Disable automatic reset to avoid unexpected resets during use
+  // useEffect(() => {
+  //   // Only run once when the component is mounted and user is logged in
+  //   if (voterProfile && !isLoadingSessions) {
+  //     resetVerificationMutation.mutate();
+  //   }
+  // }, [voterProfile]); // Only depend on voterProfile to ensure this runs just once when profile is loaded
 
   // Process verification sessions when data changes
   useEffect(() => {
@@ -156,6 +157,22 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
 
   const completeStepMutation = useMutation({
     mutationFn: async (step: string) => {
+      // Try multiple strategies to transition to the next step
+      let response;
+      
+      // Strategy 1: Try the fix-sequence endpoint first
+      try {
+        response = await apiRequest("POST", `/api/verification/fix-sequence`, {});
+        const data = await response.json();
+        if (response.ok) {
+          console.log("Fix-sequence strategy successful");
+          return data;
+        }
+      } catch (error) {
+        console.warn("Fix-sequence strategy failed, trying standard endpoint");
+      }
+      
+      // Strategy 2: Fall back to standard step transition
       // Get next step
       const steps = Object.values(VerificationSteps);
       const currentIndex = steps.indexOf(step as any);
@@ -166,7 +183,7 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
       const nextStep = steps[currentIndex + 1];
       
       // Call the API to move to the next step
-      const response = await apiRequest("POST", `/api/verification/step/${nextStep}`, {});
+      response = await apiRequest("POST", `/api/verification/step/${step}`, {});
       return await response.json();
     },
     onSuccess: (data, step) => {
@@ -213,7 +230,7 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
   };
 
   const completeStep = (step: string) => {
-    // Get the next step to pass to the mutation
+    // Check if step is valid before proceeding
     const steps = Object.values(VerificationSteps);
     const currentIndex = steps.indexOf(step as any);
     if (currentIndex === -1 || currentIndex === steps.length - 1) {
@@ -221,11 +238,10 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
       return;
     }
     
-    const nextStep = steps[currentIndex + 1];
-    console.log(`In hook: Completing step ${step} by passing next step ${nextStep}`);
+    console.log(`In hook: Completing step ${step}`);
     
-    // Mutate with the next step
-    completeStepMutation.mutate(nextStep);
+    // Mutate with the current step
+    completeStepMutation.mutate(step);
   };
 
   const isStepCompleted = (step: string) => {

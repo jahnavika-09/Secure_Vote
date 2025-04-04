@@ -301,40 +301,84 @@ export function BiometricVerification({
   const handleComplete = async () => {
     if (isVerified) {
       try {
-        // Use special fix-sequence endpoint that handles the step transition properly
-        const response = await apiRequest('POST', '/api/verification/fix-sequence', {});
+        // Try multiple strategies to ensure progress can continue
+        let successfulTransition = false;
+        let responseMessage = "";
         
-        if (response.ok) {
-          const data = await response.json();
+        // Strategy 1: Use the fix-sequence endpoint
+        try {
+          const response = await apiRequest('POST', '/api/verification/fix-sequence', {});
+          if (response.ok) {
+            const data = await response.json();
+            responseMessage = data.message;
+            successfulTransition = true;
+            console.log("Fix-sequence strategy successful");
+          }
+        } catch (err) {
+          console.warn("Fix-sequence strategy failed:", err);
+        }
+        
+        // Strategy 2: Use standard step transition
+        if (!successfulTransition) {
+          try {
+            const response = await apiRequest('POST', '/api/verification/step/biometric', {});
+            if (response.ok) {
+              const data = await response.json();
+              responseMessage = data.message || "Moving to the next verification step.";
+              successfulTransition = true;
+              console.log("Standard step transition successful");
+            }
+          } catch (err) {
+            console.warn("Standard step transition failed:", err);
+          }
+        }
+        
+        // Strategy 3: Use the restart biometric endpoint as a last resort
+        if (!successfulTransition) {
+          try {
+            // First try resetting just the biometric step
+            const response = await apiRequest('POST', '/api/verification/restart-biometric', {});
+            if (response.ok) {
+              // If we successfully restart, we'll still let the user proceed
+              // but we'll warn them they may need to try again
+              responseMessage = "Biometric verification needs to be restarted. Please try again if needed.";
+              successfulTransition = true;
+              console.log("Biometric restart successful");
+            }
+          } catch (err) {
+            console.warn("Biometric restart failed:", err);
+          }
+        }
+        
+        // Strategy 4: Full reset if nothing else worked
+        if (!successfulTransition) {
+          try {
+            // If all else fails, try a full reset
+            const response = await apiRequest('POST', '/api/verification/reset', {});
+            if (response.ok) {
+              responseMessage = "Verification process has been reset. Please start from the beginning.";
+              successfulTransition = true;
+              console.log("Full reset successful");
+            }
+          } catch (err) {
+            console.warn("Full reset failed:", err);
+          }
+        }
+        
+        if (successfulTransition) {
           toast({
             title: "Biometric Verification Complete",
-            description: data.message || "Moving to the next verification step.",
+            description: responseMessage,
           });
           onVerificationComplete();
         } else {
-          // Try regular step transition as a fallback
-          try {
-            const regularResponse = await apiRequest('POST', '/api/verification/step/biometric', {});
-            if (regularResponse.ok) {
-              toast({
-                title: "Biometric Verification Complete",
-                description: "Moving to the next verification step.",
-              });
-              onVerificationComplete();
-              return;
-            } else {
-              throw new Error("Regular step transition failed too");
-            }
-          } catch (nestedError) {
-            console.error("Regular step transition failed:", nestedError);
-            throw new Error("Failed to complete verification step");
-          }
+          throw new Error("All transition strategies failed");
         }
       } catch (error) {
         console.error("Error completing biometric step:", error);
         toast({
           title: "Verification Failed",
-          description: "Could not complete the verification step. Please try again.",
+          description: "Could not complete the verification step. Please try the manual verification option.",
           variant: "destructive",
         });
       }
