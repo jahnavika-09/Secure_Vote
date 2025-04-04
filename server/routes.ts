@@ -379,9 +379,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const sessions = await storage.getVerificationSessionsByUserId(req.user!.id);
       const latestSession = sessions[0];
       
-      if (!latestSession || latestSession.step !== VerificationSteps.READY) {
+      // Handle cases where session might already be verified
+      if (!latestSession) {
+        return res.status(400).json({ 
+          message: "No verification session found." 
+        });
+      }
+      
+      if (latestSession.step !== VerificationSteps.READY) {
         return res.status(400).json({ 
           message: "Invalid verification step. You must reach the ready step first." 
+        });
+      }
+      
+      // Important: If already verified, just return success without error
+      if (latestSession.status === VerificationStatus.VERIFIED) {
+        return res.json({ 
+          success: true, 
+          message: "Verification already completed successfully.",
+          alreadyCompleted: true
         });
       }
       

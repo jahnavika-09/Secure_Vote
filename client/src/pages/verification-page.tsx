@@ -40,11 +40,38 @@ const StepContent = ({
       const readyComplete = async () => {
         try {
           const response = await apiRequest("POST", "/api/verification/ready/complete", {});
+          
           if (response.ok) {
-            onComplete();
+            const data = await response.json();
+            console.log("Ready complete response:", data);
+            
+            if (data.success) {
+              onComplete();
+              
+              // Show success message
+              toast({
+                title: "Verification Complete",
+                description: data.alreadyCompleted 
+                  ? "Your verification was already completed. You are ready to vote!" 
+                  : "Verification process completed successfully. You are now ready to vote!",
+              });
+              
+              // Redirect to home page after 2 seconds
+              setTimeout(() => {
+                window.location.href = "/";
+              }, 2000);
+            }
+          } else {
+            const errorData = await response.json();
+            throw new Error(errorData.message || "Verification failed");
           }
         } catch (error) {
           console.error("Failed to complete READY step:", error);
+          toast({
+            title: "Verification Failed",
+            description: error instanceof Error ? error.message : "An unknown error occurred",
+            variant: "destructive",
+          });
         }
       };
       
