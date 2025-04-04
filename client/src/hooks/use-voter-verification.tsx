@@ -65,6 +65,16 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
       
       // Set the verification status
       setVerificationStatus(newStatus);
+    } else {
+      // If no verification sessions, reset to initial state
+      setVerificationStatus({
+        [VerificationSteps.IDENTITY]: VerificationStatus.PENDING,
+        [VerificationSteps.ELIGIBILITY]: VerificationStatus.PENDING,
+        [VerificationSteps.BIOMETRIC]: VerificationStatus.PENDING,
+        [VerificationSteps.OTP]: VerificationStatus.PENDING,
+        [VerificationSteps.READY]: VerificationStatus.PENDING
+      });
+      setCurrentStep(VerificationSteps.IDENTITY);
     }
   }, [verificationSessions]);
 

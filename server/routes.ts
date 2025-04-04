@@ -353,11 +353,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         timestamp: Math.floor(Date.now() / 1000)
       });
       
-      // Create the final "Ready to Vote" step
+      // Create the final "Ready to Vote" step, but set it to IN_PROGRESS initially
+      // so the user still has to manually complete it
       const finalSession = await storage.createVerificationSession({
         userId: req.user!.id,
         step: VerificationSteps.READY,
-        status: VerificationStatus.VERIFIED,
+        status: VerificationStatus.IN_PROGRESS,
         blockchainRef: block.hash
       });
       
@@ -367,6 +368,52 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Complete the final verification step
+  app.post("/api/verification/ready/complete", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      // Get latest verification session
+      const sessions = await storage.getVerificationSessionsByUserId(req.user!.id);
+      const latestSession = sessions[0];
+      
+      if (!latestSession || latestSession.step !== VerificationSteps.READY) {
+        return res.status(400).json({ 
+          message: "Invalid verification step. You must reach the ready step first." 
+        });
+      }
+      
+      if (latestSession.status !== VerificationStatus.IN_PROGRESS) {
+        return res.status(400).json({
+          message: "Ready step is not in progress."
+        });
+      }
+      
+      // Update the session to mark it as verified
+      await storage.updateVerificationSession(latestSession.id, {
+        status: VerificationStatus.VERIFIED
+      });
+      
+      // Record in blockchain
+      const blockchain = await Blockchain.getInstance();
+      await blockchain.addBlock({
+        type: "verification_complete",
+        userId: req.user!.id,
+        verified: true,
+        timestamp: Math.floor(Date.now() / 1000)
+      });
+      
+      res.json({ 
+        success: true, 
+        message: "Verification process completed successfully." 
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+  
   // Admin endpoints for monitoring
   app.get("/api/admin/sessions", async (req, res) => {
     if (!req.isAuthenticated() || req.user!.role !== "admin") {

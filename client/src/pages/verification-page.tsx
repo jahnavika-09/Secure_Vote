@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, ArrowRight, AlertTriangle } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, AlertTriangle, CheckCircle, Check } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useVoterVerification } from "@/hooks/use-voter-verification";
@@ -37,6 +37,17 @@ const StepContent = ({
     case VerificationSteps.OTP:
       return <OtpVerification onVerificationComplete={onComplete} />;
     case VerificationSteps.READY:
+      const readyComplete = async () => {
+        try {
+          const response = await apiRequest("POST", "/api/verification/ready/complete", {});
+          if (response.ok) {
+            onComplete();
+          }
+        } catch (error) {
+          console.error("Failed to complete READY step:", error);
+        }
+      };
+      
       return (
         <div className="bg-white shadow sm:rounded-lg overflow-hidden">
           <div className="px-4 py-5 sm:p-6">
@@ -44,9 +55,23 @@ const StepContent = ({
               <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
                 <CheckCircle className="h-8 w-8 text-green-600" />
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Verification Complete!</h2>
-              <p className="text-gray-500 mb-6">You have successfully completed the verification process and are ready to vote.</p>
-              <Button>Proceed to Voting</Button>
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Final Verification Step</h2>
+              <p className="text-gray-500 mb-6">
+                You've completed all verification steps. Please confirm your information and complete the verification process to become eligible to vote.
+              </p>
+              <div className="p-4 bg-neutral-50 rounded-lg mb-6 w-full text-left">
+                <h3 className="font-medium text-neutral-900 mb-2">Important Notice:</h3>
+                <ul className="list-disc pl-5 space-y-1 text-sm">
+                  <li>Your identity has been verified</li>
+                  <li>Your eligibility has been confirmed</li>
+                  <li>Your biometric data has been authenticated</li>
+                  <li>Your OTP verification is complete</li>
+                </ul>
+                <p className="mt-2 text-sm text-neutral-600">
+                  By clicking "Complete Verification" below, you confirm that all information provided is accurate and truthful.
+                </p>
+              </div>
+              <Button onClick={readyComplete}>Complete Verification</Button>
             </div>
           </div>
         </div>
@@ -66,13 +91,7 @@ const StepContent = ({
   }
 };
 
-// CheckCircle component for READY state
-const CheckCircle = ({ className }: { className: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-  </svg>
-);
+// Already importing CheckCircle from lucide-react
 
 // StepStatus component
 interface StepStatusProps {
