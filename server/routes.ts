@@ -414,6 +414,81 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Special endpoint to fix verification sequence for biometric authentication
+  app.post("/api/verification/fix-sequence", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      // Get user's verification sessions
+      const sessions = await storage.getVerificationSessionsByUserId(req.user!.id);
+      
+      if (sessions.length === 0) {
+        return res.status(400).json({
+          message: "No verification sessions found."
+        });
+      }
+      
+      // Get the latest session
+      const latestSession = sessions[0];
+      
+      // Create the appropriate next step based on the current step
+      let nextStep;
+      let currentStep = latestSession.step;
+      
+      switch (currentStep) {
+        case VerificationSteps.IDENTITY:
+          nextStep = VerificationSteps.ELIGIBILITY;
+          break;
+        case VerificationSteps.ELIGIBILITY:
+          nextStep = VerificationSteps.BIOMETRIC;
+          break;
+        case VerificationSteps.BIOMETRIC:
+          nextStep = VerificationSteps.OTP;
+          break;
+        case VerificationSteps.OTP:
+          nextStep = VerificationSteps.READY;
+          break;
+        default:
+          return res.status(400).json({
+            message: "Cannot determine next step in sequence."
+          });
+      }
+      
+      // Mark the current step as verified
+      await storage.updateVerificationSession(latestSession.id, {
+        status: VerificationStatus.VERIFIED
+      });
+      
+      // Record verification step in blockchain
+      const blockchain = await Blockchain.getInstance();
+      const block = await blockchain.addBlock({
+        type: "verification_step",
+        userId: req.user!.id,
+        step: latestSession.step,
+        status: VerificationStatus.VERIFIED,
+        timestamp: Math.floor(Date.now() / 1000)
+      });
+      
+      // Create the next step in sequence
+      const newSession = await storage.createVerificationSession({
+        userId: req.user!.id,
+        step: nextStep,
+        status: VerificationStatus.IN_PROGRESS,
+        blockchainRef: block.hash
+      });
+      
+      res.status(201).json({
+        success: true,
+        message: `Successfully advanced from ${currentStep} to ${nextStep}`,
+        session: newSession
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
   // Admin endpoints for monitoring
   app.get("/api/admin/sessions", async (req, res) => {
     if (!req.isAuthenticated() || req.user!.role !== "admin") {

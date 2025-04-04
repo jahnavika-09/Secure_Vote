@@ -266,17 +266,34 @@ export function BiometricVerification({
   const handleComplete = async () => {
     if (isVerified) {
       try {
-        // Call the API to mark the biometric step as complete and move to the next step
-        const response = await apiRequest('POST', '/api/verification/step/biometric', {});
+        // Use special fix-sequence endpoint that handles the step transition properly
+        const response = await apiRequest('POST', '/api/verification/fix-sequence', {});
         
         if (response.ok) {
+          const data = await response.json();
           toast({
             title: "Biometric Verification Complete",
-            description: "Moving to the next verification step.",
+            description: data.message || "Moving to the next verification step.",
           });
           onVerificationComplete();
         } else {
-          throw new Error("Failed to complete verification step");
+          // Try regular step transition as a fallback
+          try {
+            const regularResponse = await apiRequest('POST', '/api/verification/step/biometric', {});
+            if (regularResponse.ok) {
+              toast({
+                title: "Biometric Verification Complete",
+                description: "Moving to the next verification step.",
+              });
+              onVerificationComplete();
+              return;
+            } else {
+              throw new Error("Regular step transition failed too");
+            }
+          } catch (nestedError) {
+            console.error("Regular step transition failed:", nestedError);
+            throw new Error("Failed to complete verification step");
+          }
         }
       } catch (error) {
         console.error("Error completing biometric step:", error);
