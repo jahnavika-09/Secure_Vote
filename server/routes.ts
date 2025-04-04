@@ -312,6 +312,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         status: VerificationStatus.VERIFIED
       });
       
+      res.json({ 
+        success: true, 
+        message: "OTP verification successful"
+      });
+    } catch (error) {
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+  
+  // Handle the ready step (final step)
+  app.post("/api/verification/step/ready", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      // Get latest verification session
+      const sessions = await storage.getVerificationSessionsByUserId(req.user!.id);
+      const latestSession = sessions[0];
+      
+      if (!latestSession || latestSession.step !== VerificationSteps.OTP) {
+        return res.status(400).json({ 
+          message: "Invalid verification step. You must complete the OTP verification first." 
+        });
+      }
+      
+      if (latestSession.status !== VerificationStatus.VERIFIED) {
+        return res.status(400).json({
+          message: "Please verify your OTP first."
+        });
+      }
+      
+      // Record final verification in blockchain
+      const blockchain = await Blockchain.getInstance();
+      const block = await blockchain.addBlock({
+        type: "final_verification",
+        userId: req.user!.id,
+        verified: true,
+        timestamp: Math.floor(Date.now() / 1000)
+      });
+      
       // Create the final "Ready to Vote" step
       const finalSession = await storage.createVerificationSession({
         userId: req.user!.id,
@@ -320,11 +361,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         blockchainRef: block.hash
       });
       
-      res.json({ 
-        success: true, 
-        message: "OTP verification successful",
-        session: finalSession
-      });
+      res.status(201).json(finalSession);
     } catch (error) {
       res.status(500).json({ message: "Server error" });
     }

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { OtpInput } from "@/components/ui/otp-input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { MessageSquare, Repeat, ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
+import { MessageSquare, Repeat, ShieldCheck, AlertCircle, Loader2, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
@@ -16,6 +16,7 @@ export function OtpVerification({ onVerificationComplete }: OtpVerificationProps
   const [isGenerating, setIsGenerating] = useState(false);
   const [isVerifying, setIsVerifying] = useState(false);
   const [generatedOtp, setGeneratedOtp] = useState<string | null>(null);
+  const [isVerified, setIsVerified] = useState(false);
 
   const handleGenerateOtp = async () => {
     try {
@@ -54,12 +55,11 @@ export function OtpVerification({ onVerificationComplete }: OtpVerificationProps
       const response = await apiRequest("POST", "/api/verification/otp/verify", { otp });
       
       if (response.ok) {
+        setIsVerified(true);
         toast({
           title: "OTP Verified",
-          description: "Your identity has been successfully verified.",
-          variant: "success",
+          description: "Your identity has been successfully verified. Now click 'Complete Step' to continue.",
         });
-        onVerificationComplete();
       } else {
         throw new Error("OTP verification failed");
       }
@@ -71,6 +71,18 @@ export function OtpVerification({ onVerificationComplete }: OtpVerificationProps
       });
     } finally {
       setIsVerifying(false);
+    }
+  };
+
+  const handleComplete = () => {
+    if (isVerified) {
+      onVerificationComplete();
+    } else {
+      toast({
+        title: "Verification Required",
+        description: "Please verify your OTP first before completing this step.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -151,7 +163,15 @@ export function OtpVerification({ onVerificationComplete }: OtpVerificationProps
         <Button variant="outline" disabled={isGenerating || isVerifying}>
           Need help?
         </Button>
-        {generatedOtp ? (
+        {isVerified ? (
+          <Button 
+            onClick={handleComplete}
+            className="bg-green-600 hover:bg-green-700"
+          >
+            <CheckCircle2 className="mr-2 h-4 w-4" />
+            Complete Step
+          </Button>
+        ) : generatedOtp ? (
           <Button 
             onClick={handleVerifyOtp} 
             disabled={otp.length !== 6 || isVerifying}

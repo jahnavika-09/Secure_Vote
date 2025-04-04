@@ -273,36 +273,8 @@ function VerificationPageContent({
         
         toast({
           title: "Verification Started",
-          description: "Your verification process has been initiated.",
+          description: "Your verification process has been initiated. Complete each step manually to proceed.",
         });
-        
-        // Automatically complete identity and eligibility checks after short delay
-        // This is just for demo purposes
-        setTimeout(async () => {
-          // Complete identity - note the current step is identity, so we need to call for the NEXT step
-          // which is eligibility
-          await apiRequest("POST", `/api/verification/step/eligibility`, {});
-          
-          setVerificationStatus(prevStatus => ({
-            ...prevStatus,
-            [VerificationSteps.IDENTITY]: "verified",
-            [VerificationSteps.ELIGIBILITY]: "in_progress",
-          }));
-          
-          // Complete eligibility
-          setTimeout(async () => {
-            // Complete eligibility - need to call for the NEXT step which is biometric
-            await apiRequest("POST", `/api/verification/step/biometric`, {});
-            
-            setVerificationStatus(prevStatus => ({
-              ...prevStatus,
-              [VerificationSteps.ELIGIBILITY]: "verified",
-              [VerificationSteps.BIOMETRIC]: "in_progress",
-            }));
-            
-            setCurrentStep("BIOMETRIC" as keyof typeof VerificationSteps);
-          }, 1500);
-        }, 1500);
       }
     } catch (error) {
       toast({
