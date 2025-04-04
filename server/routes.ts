@@ -414,6 +414,44 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Reset verification process endpoint - for restarting the process from the beginning
+  app.post("/api/verification/reset", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      // Get user's verification sessions
+      const sessions = await storage.getVerificationSessionsByUserId(req.user!.id);
+      
+      // Create a new reset block in the blockchain
+      const blockchain = await Blockchain.getInstance();
+      const resetBlock = await blockchain.addBlock({
+        type: "verification_reset",
+        userId: req.user!.id,
+        timestamp: Math.floor(Date.now() / 1000),
+        reason: "User initiated process restart"
+      });
+      
+      // Create a new Identity verification session (first step)
+      const newSession = await storage.createVerificationSession({
+        userId: req.user!.id,
+        step: VerificationSteps.IDENTITY,
+        status: VerificationStatus.IN_PROGRESS,
+        blockchainRef: resetBlock.hash
+      });
+      
+      res.status(201).json({
+        success: true,
+        message: "Verification process has been restarted",
+        session: newSession
+      });
+    } catch (error) {
+      console.error("Error resetting verification:", error);
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+  
   // Special endpoint to fix verification sequence for biometric authentication
   app.post("/api/verification/fix-sequence", async (req, res) => {
     if (!req.isAuthenticated()) {

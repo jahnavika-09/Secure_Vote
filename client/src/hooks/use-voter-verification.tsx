@@ -10,6 +10,7 @@ interface VerificationContextType {
   voterProfile: VoterProfile | null;
   isLoading: boolean;
   startVerification: () => void;
+  resetVerification: () => void;
   completeStep: (step: string) => void;
   isStepCompleted: (step: string) => boolean;
 }
@@ -33,10 +34,52 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
     queryKey: ["/api/voter-profile"],
   });
 
+  // Reset Verification Mutation
+  const resetVerificationMutation = useMutation({
+    mutationFn: async () => {
+      const response = await apiRequest("POST", "/api/verification/reset", {});
+      return await response.json();
+    },
+    onSuccess: (data) => {
+      // Reset status to initial state with identity in progress
+      setVerificationStatus({
+        [VerificationSteps.IDENTITY]: VerificationStatus.IN_PROGRESS,
+        [VerificationSteps.ELIGIBILITY]: VerificationStatus.PENDING,
+        [VerificationSteps.BIOMETRIC]: VerificationStatus.PENDING,
+        [VerificationSteps.OTP]: VerificationStatus.PENDING,
+        [VerificationSteps.READY]: VerificationStatus.PENDING
+      });
+      setCurrentStep(VerificationSteps.IDENTITY);
+      
+      // Invalidate verification sessions query to refetch
+      queryClient.invalidateQueries({ queryKey: ["/api/verification"] });
+      
+      toast({
+        title: "Verification Reset",
+        description: "Your voter verification process has been restarted from the beginning.",
+      });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: "Failed to reset verification. Please try again.",
+        variant: "destructive",
+      });
+    },
+  });
+
   // Fetch verification sessions
   const { data: verificationSessions, isLoading: isLoadingSessions } = useQuery<VerificationSession[]>({
     queryKey: ["/api/verification"],
   });
+
+  // Automatic reset on application start
+  useEffect(() => {
+    // Only run once when the component is mounted and user is logged in
+    if (voterProfile && !isLoadingSessions) {
+      resetVerificationMutation.mutate();
+    }
+  }, [voterProfile]); // Only depend on voterProfile to ensure this runs just once when profile is loaded
 
   // Process verification sessions when data changes
   useEffect(() => {
@@ -165,6 +208,10 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
     startVerificationMutation.mutate();
   };
 
+  const resetVerification = () => {
+    resetVerificationMutation.mutate();
+  };
+
   const completeStep = (step: string) => {
     // Get the next step to pass to the mutation
     const steps = Object.values(VerificationSteps);
@@ -193,6 +240,7 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
         voterProfile: voterProfile || null,
         isLoading: isLoadingProfile || isLoadingSessions,
         startVerification,
+        resetVerification,
         completeStep,
         isStepCompleted,
       }}
