@@ -93,11 +93,15 @@ export default function VerificationPage() {
   // Check if user has a voter profile
   const { data: voterProfile, isLoading: isLoadingProfile } = useQuery({
     queryKey: ["/api/voter-profile"],
-    onError: () => {
+  });
+  
+  // Handle error if no profile found
+  useEffect(() => {
+    if (!isLoadingProfile && !voterProfile) {
       // If no profile, we'll create a mock one
       setIsCreatingProfile(true);
     }
-  });
+  }, [isLoadingProfile, voterProfile]);
 
   // Create a voter profile if none exists
   const createVoterProfile = async () => {
@@ -157,6 +161,9 @@ export default function VerificationPage() {
   );
 }
 
+// Type to ensure we're using the right step type
+type StepType = keyof typeof VerificationSteps;
+
 // Wrapper for VerificationProvider to avoid circular dependency
 function VerificationProvider({ children }: { children: React.ReactNode }) {
   return (
@@ -192,14 +199,18 @@ function VerificationPageContent({
     [VerificationSteps.READY]: "pending"
   });
   
-  const [currentStep, setCurrentStep] = useState(VerificationSteps.IDENTITY);
+  const [currentStep, setCurrentStep] = useState<keyof typeof VerificationSteps>("IDENTITY" as keyof typeof VerificationSteps);
   
   // Fetch verification status from server
   const { data: verificationSessions, isLoading: isLoadingSessions } = useQuery({
     queryKey: ["/api/verification"],
-    enabled: !isLoading && !!voterProfile,
-    onSuccess: (sessions) => {
-      if (sessions && sessions.length > 0) {
+    enabled: !isLoading && !!voterProfile
+  });
+
+  // Process verification sessions when data changes
+  useEffect(() => {
+    const sessions = verificationSessions;
+    if (sessions && Array.isArray(sessions) && sessions.length > 0) {
         // Update state with the latest session information
         const newStatus = { ...verificationStatus };
         let foundInProgress = false;
@@ -221,14 +232,13 @@ function VerificationPageContent({
             newStatus[VerificationSteps.ELIGIBILITY] === "verified") {
           // If biometric is next and not in progress
           if (newStatus[VerificationSteps.BIOMETRIC] === "pending") {
-            setCurrentStep(VerificationSteps.BIOMETRIC);
+            setCurrentStep("BIOMETRIC" as keyof typeof VerificationSteps);
           }
         }
         
         setVerificationStatus(newStatus);
       }
-    }
-  });
+  }, [verificationSessions, verificationStatus]);
   
   // Start verification process
   const startVerification = async () => {
@@ -238,7 +248,7 @@ function VerificationPageContent({
         setHasStarted(true);
         
         // Start with identity verification
-        setCurrentStep(VerificationSteps.IDENTITY);
+        setCurrentStep("IDENTITY" as keyof typeof VerificationSteps);
         setVerificationStatus({
           ...verificationStatus,
           [VerificationSteps.IDENTITY]: "in_progress",
@@ -271,7 +281,7 @@ function VerificationPageContent({
               [VerificationSteps.BIOMETRIC]: "in_progress",
             });
             
-            setCurrentStep(VerificationSteps.BIOMETRIC);
+            setCurrentStep("BIOMETRIC" as keyof typeof VerificationSteps);
           }, 1500);
         }, 1500);
       }
@@ -307,12 +317,12 @@ function VerificationPageContent({
           [nextStep]: "in_progress",
         });
         
-        setCurrentStep(nextStep);
+        setCurrentStep(nextStep as keyof typeof VerificationSteps);
         
         toast({
           title: "Step Completed",
           description: `${step} verification completed successfully.`,
-          variant: "success",
+          variant: "default",
         });
       }
     } catch (error) {
@@ -335,7 +345,7 @@ function VerificationPageContent({
     const currentIndex = steps.indexOf(currentStep as any);
     
     if (currentIndex > 0) {
-      setCurrentStep(steps[currentIndex - 1]);
+      setCurrentStep(steps[currentIndex - 1] as keyof typeof VerificationSteps);
     }
   };
   
@@ -346,7 +356,7 @@ function VerificationPageContent({
     if (currentIndex < steps.length - 1) {
       // Only allow moving to next step if current step is verified
       if (verificationStatus[currentStep] === "verified") {
-        setCurrentStep(steps[currentIndex + 1]);
+        setCurrentStep(steps[currentIndex + 1] as keyof typeof VerificationSteps);
       }
     }
   };

@@ -95,7 +95,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: "verification_start",
         userId: req.user!.id,
         voterId: voterProfile.voterId,
-        timestamp: Date.now()
+        timestamp: Math.floor(Date.now() / 1000)
       });
       
       // Create the initial verification session (Identity verification)
@@ -159,7 +159,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user!.id,
         step: latestSession.step,
         status: VerificationStatus.VERIFIED,
-        timestamp: Date.now()
+        timestamp: Math.floor(Date.now() / 1000)
       });
       
       // Create the next verification step
@@ -218,7 +218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         userId: req.user!.id,
         biometricType,
         verified: true,
-        timestamp: Date.now()
+        timestamp: Math.floor(Date.now() / 1000)
       });
       
       res.json({ success: true, message: "Biometric verification successful" });
@@ -256,7 +256,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: "otp_generation",
         userId: req.user!.id,
         otpHash: Buffer.from(formattedOtp).toString('base64'), // Don't store actual OTP
-        timestamp: Date.now()
+        timestamp: Math.floor(Date.now() / 1000)
       });
       
       res.json({ 
@@ -303,7 +303,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         type: "otp_verification",
         userId: req.user!.id,
         verified: true,
-        timestamp: Date.now()
+        timestamp: Math.floor(Date.now() / 1000)
       });
       
       // Mark OTP verification as complete
@@ -340,12 +340,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // This is simplified for the demo
       
       // Get all verification sessions from all users
-      const allSessions = [];
-      // This is inefficient, but works for our in-memory storage
-      for (let userId = 1; userId < (storage as any).currentUserId; userId++) {
-        const userSessions = await storage.getVerificationSessionsByUserId(userId);
-        allSessions.push(...userSessions);
-      }
+      // This would typically use a dedicated query that fetches all sessions
+      // For now, we'll just return the most recent 100 sessions
+      const allSessions = await storage.getAllVerificationSessions(100);
       
       res.json(allSessions);
     } catch (error) {

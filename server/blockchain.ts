@@ -15,7 +15,8 @@ class Block {
   ) {
     this.data = data;
     this.previousHash = previousHash;
-    this.timestamp = Date.now();
+    // Use seconds instead of milliseconds to fit in Postgres integer field
+    this.timestamp = Math.floor(Date.now() / 1000);
     this.nonce = 0;
     this.hash = this.calculateHash();
   }
@@ -81,7 +82,7 @@ export class Blockchain {
     const latestRecord = await storage.getLatestBlockchainRecord();
     if (!latestRecord) return null;
     
-    const block = new Block(latestRecord.data, latestRecord.previousHash);
+    const block = new Block(latestRecord.data as Record<string, any>, latestRecord.previousHash);
     block.hash = latestRecord.hash;
     block.timestamp = latestRecord.timestamp;
     block.nonce = latestRecord.nonce;
@@ -126,7 +127,7 @@ export class Blockchain {
       const previousBlock = records[i - 1]!;
 
       // Validate current block hash
-      const block = new Block(currentBlock.data, currentBlock.previousHash);
+      const block = new Block(currentBlock.data as Record<string, any>, currentBlock.previousHash);
       block.timestamp = currentBlock.timestamp;
       block.nonce = currentBlock.nonce;
       
@@ -144,16 +145,16 @@ export class Blockchain {
   }
 
   async getChainLength(): Promise<number> {
-    // In a real implementation, this would query the DB for the count
-    // For our in-memory implementation, we'll use the currentBlockId - 1
-    return (storage as any).currentBlockId - 1;
+    // Query the database for the count of blockchain records
+    const count = await storage.getBlockchainRecordCount();
+    return count;
   }
 
   async getBlockByHash(hash: string): Promise<Block | null> {
     const record = await storage.getBlockchainRecordByHash(hash);
     if (!record) return null;
     
-    const block = new Block(record.data, record.previousHash);
+    const block = new Block(record.data as Record<string, any>, record.previousHash);
     block.hash = record.hash;
     block.timestamp = record.timestamp;
     block.nonce = record.nonce;

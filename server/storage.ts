@@ -13,9 +13,11 @@ import {
   type InsertBlockchainRecord 
 } from "@shared/schema";
 import session from "express-session";
-import createMemoryStore from "memorystore";
+import { db, pool } from "./db";
+import { eq, desc, count } from "drizzle-orm";
+import connectPgSimple from "connect-pg-simple";
 
-const MemoryStore = createMemoryStore(session);
+const PostgresSessionStore = connectPgSimple(session);
 
 export interface IStorage {
   // User Management
@@ -35,141 +37,143 @@ export interface IStorage {
   getVerificationSessionsByUserId(userId: number): Promise<VerificationSession[]>;
   createVerificationSession(session: InsertVerificationSession): Promise<VerificationSession>;
   updateVerificationSession(id: number, session: Partial<VerificationSession>): Promise<VerificationSession | undefined>;
+  getAllVerificationSessions(limit?: number): Promise<VerificationSession[]>;
   
   // Blockchain Record Management
   getBlockchainRecord(id: number): Promise<BlockchainRecord | undefined>;
   getBlockchainRecordByHash(hash: string): Promise<BlockchainRecord | undefined>;
   getLatestBlockchainRecord(): Promise<BlockchainRecord | undefined>;
   createBlockchainRecord(record: InsertBlockchainRecord): Promise<BlockchainRecord>;
+  getBlockchainRecordCount(): Promise<number>;
   
   // Session Store
-  sessionStore: session.SessionStore;
+  sessionStore: session.Store;
 }
 
-export class MemStorage implements IStorage {
-  private users: Map<number, User>;
-  private voterProfiles: Map<number, VoterProfile>;
-  private verificationSessions: Map<number, VerificationSession>;
-  private blockchainRecords: Map<number, BlockchainRecord>;
-  
-  sessionStore: session.SessionStore;
-  currentUserId: number;
-  currentProfileId: number;
-  currentSessionId: number;
-  currentBlockId: number;
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
 
   constructor() {
-    this.users = new Map();
-    this.voterProfiles = new Map();
-    this.verificationSessions = new Map();
-    this.blockchainRecords = new Map();
-    
-    this.currentUserId = 1;
-    this.currentProfileId = 1;
-    this.currentSessionId = 1;
-    this.currentBlockId = 1;
-    
-    this.sessionStore = new MemoryStore({
-      checkPeriod: 86400000 // 24 hours
+    this.sessionStore = new PostgresSessionStore({
+      pool,
+      createTableIfMissing: true
     });
   }
 
   // User Management
   async getUser(id: number): Promise<User | undefined> {
-    return this.users.get(id);
+    const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    return Array.from(this.users.values()).find(user => user.username === username);
+    const [user] = await db.select().from(users).where(eq(users.username, username));
+    return user;
   }
 
   async createUser(insertUser: InsertUser): Promise<User> {
-    const id = this.currentUserId++;
-    const user: User = { ...insertUser, id };
-    this.users.set(id, user);
+    const [user] = await db.insert(users).values(insertUser).returning();
     return user;
   }
 
   // Voter Profile Management
   async getVoterProfile(id: number): Promise<VoterProfile | undefined> {
-    return this.voterProfiles.get(id);
+    const [profile] = await db.select().from(voterProfiles).where(eq(voterProfiles.id, id));
+    return profile;
   }
 
   async getVoterProfileByUserId(userId: number): Promise<VoterProfile | undefined> {
-    return Array.from(this.voterProfiles.values()).find(profile => profile.userId === userId);
+    const [profile] = await db.select().from(voterProfiles).where(eq(voterProfiles.userId, userId));
+    return profile;
   }
 
   async getVoterProfileByVoterId(voterId: string): Promise<VoterProfile | undefined> {
-    return Array.from(this.voterProfiles.values()).find(profile => profile.voterId === voterId);
+    const [profile] = await db.select().from(voterProfiles).where(eq(voterProfiles.voterId, voterId));
+    return profile;
   }
 
   async createVoterProfile(insertProfile: InsertVoterProfile): Promise<VoterProfile> {
-    const id = this.currentProfileId++;
-    const profile: VoterProfile = { ...insertProfile, id };
-    this.voterProfiles.set(id, profile);
+    const [profile] = await db.insert(voterProfiles).values(insertProfile).returning();
     return profile;
   }
 
   async updateVoterProfile(id: number, updates: Partial<VoterProfile>): Promise<VoterProfile | undefined> {
-    const profile = this.voterProfiles.get(id);
-    if (!profile) return undefined;
+    const [updatedProfile] = await db
+      .update(voterProfiles)
+      .set(updates)
+      .where(eq(voterProfiles.id, id))
+      .returning();
     
-    const updatedProfile = { ...profile, ...updates };
-    this.voterProfiles.set(id, updatedProfile);
     return updatedProfile;
   }
 
   // Verification Session Management
   async getVerificationSession(id: number): Promise<VerificationSession | undefined> {
-    return this.verificationSessions.get(id);
+    const [session] = await db.select().from(verificationSessions).where(eq(verificationSessions.id, id));
+    return session;
   }
 
   async getVerificationSessionsByUserId(userId: number): Promise<VerificationSession[]> {
-    return Array.from(this.verificationSessions.values())
-      .filter(session => session.userId === userId)
-      .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+    return await db
+      .select()
+      .from(verificationSessions)
+      .where(eq(verificationSessions.userId, userId))
+      .orderBy(desc(verificationSessions.timestamp));
   }
 
   async createVerificationSession(insertSession: InsertVerificationSession): Promise<VerificationSession> {
-    const id = this.currentSessionId++;
-    const timestamp = new Date();
-    const session: VerificationSession = { ...insertSession, id, timestamp };
-    this.verificationSessions.set(id, session);
+    const [session] = await db.insert(verificationSessions).values(insertSession).returning();
     return session;
   }
 
   async updateVerificationSession(id: number, updates: Partial<VerificationSession>): Promise<VerificationSession | undefined> {
-    const session = this.verificationSessions.get(id);
-    if (!session) return undefined;
+    const [updatedSession] = await db
+      .update(verificationSessions)
+      .set(updates)
+      .where(eq(verificationSessions.id, id))
+      .returning();
     
-    const updatedSession = { ...session, ...updates };
-    this.verificationSessions.set(id, updatedSession);
     return updatedSession;
+  }
+  
+  async getAllVerificationSessions(limit: number = 100): Promise<VerificationSession[]> {
+    return await db
+      .select()
+      .from(verificationSessions)
+      .orderBy(desc(verificationSessions.timestamp))
+      .limit(limit);
   }
 
   // Blockchain Record Management
   async getBlockchainRecord(id: number): Promise<BlockchainRecord | undefined> {
-    return this.blockchainRecords.get(id);
+    const [record] = await db.select().from(blockchainRecords).where(eq(blockchainRecords.id, id));
+    return record;
   }
 
   async getBlockchainRecordByHash(hash: string): Promise<BlockchainRecord | undefined> {
-    return Array.from(this.blockchainRecords.values()).find(record => record.hash === hash);
+    const [record] = await db.select().from(blockchainRecords).where(eq(blockchainRecords.hash, hash));
+    return record;
   }
 
   async getLatestBlockchainRecord(): Promise<BlockchainRecord | undefined> {
-    if (this.blockchainRecords.size === 0) return undefined;
+    const [record] = await db
+      .select()
+      .from(blockchainRecords)
+      .orderBy(desc(blockchainRecords.id))
+      .limit(1);
     
-    // Sort by id in descending order and get the first one
-    return Array.from(this.blockchainRecords.values())
-      .sort((a, b) => b.id - a.id)[0];
+    return record;
   }
 
   async createBlockchainRecord(insertRecord: InsertBlockchainRecord): Promise<BlockchainRecord> {
-    const id = this.currentBlockId++;
-    const record: BlockchainRecord = { ...insertRecord, id };
-    this.blockchainRecords.set(id, record);
+    const [record] = await db.insert(blockchainRecords).values(insertRecord).returning();
     return record;
+  }
+  
+  async getBlockchainRecordCount(): Promise<number> {
+    const result = await db.select({ count: count(blockchainRecords.id) }).from(blockchainRecords);
+    return result[0]?.count || 0;
   }
 }
 
-export const storage = new MemStorage();
+export const storage = new DatabaseStorage();

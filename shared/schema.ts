@@ -88,11 +88,11 @@ export type InsertBlockchainRecord = z.infer<typeof insertBlockchainRecordSchema
 export type BlockchainRecord = typeof blockchainRecords.$inferSelect;
 
 export const VerificationSteps = {
-  IDENTITY: "identity",
-  ELIGIBILITY: "eligibility",
-  BIOMETRIC: "biometric",
-  OTP: "otp",
-  READY: "ready",
+  IDENTITY: "IDENTITY",
+  ELIGIBILITY: "ELIGIBILITY",
+  BIOMETRIC: "BIOMETRIC",
+  OTP: "OTP",
+  READY: "READY",
 } as const;
 
 export const VerificationStatus = {
