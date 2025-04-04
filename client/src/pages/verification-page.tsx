@@ -212,16 +212,24 @@ function VerificationPageContent({
     const sessions = verificationSessions;
     if (sessions && Array.isArray(sessions) && sessions.length > 0) {
         // Update state with the latest session information
-        const newStatus = { ...verificationStatus };
+        const newStatus = {
+          [VerificationSteps.IDENTITY]: "pending",
+          [VerificationSteps.ELIGIBILITY]: "pending",
+          [VerificationSteps.BIOMETRIC]: "pending",
+          [VerificationSteps.OTP]: "pending",
+          [VerificationSteps.READY]: "pending"
+        };
         let foundInProgress = false;
         
         // Process sessions to determine current state
         sessions.forEach((session: any) => {
-          newStatus[session.step] = session.status;
+          // Cast the step to a valid key of VerificationSteps
+          const step = session.step as keyof typeof VerificationSteps;
+          newStatus[step] = session.status;
           
           // Set current step to the latest in-progress step
           if (session.status === "in_progress" && !foundInProgress) {
-            setCurrentStep(session.step);
+            setCurrentStep(step);
             foundInProgress = true;
             setHasStarted(true);
           }
@@ -238,7 +246,7 @@ function VerificationPageContent({
         
         setVerificationStatus(newStatus);
       }
-  }, [verificationSessions, verificationStatus]);
+  }, [verificationSessions]); // Remove verificationStatus from dependencies
   
   // Start verification process
   const startVerification = async () => {
@@ -250,8 +258,11 @@ function VerificationPageContent({
         // Start with identity verification
         setCurrentStep("IDENTITY" as keyof typeof VerificationSteps);
         setVerificationStatus({
-          ...verificationStatus,
           [VerificationSteps.IDENTITY]: "in_progress",
+          [VerificationSteps.ELIGIBILITY]: "pending",
+          [VerificationSteps.BIOMETRIC]: "pending",
+          [VerificationSteps.OTP]: "pending",
+          [VerificationSteps.READY]: "pending"
         });
         
         toast({
@@ -265,21 +276,21 @@ function VerificationPageContent({
           // Complete identity
           await apiRequest("POST", `/api/verification/step/identity`, {});
           
-          setVerificationStatus({
-            ...verificationStatus,
+          setVerificationStatus(prevStatus => ({
+            ...prevStatus,
             [VerificationSteps.IDENTITY]: "verified",
             [VerificationSteps.ELIGIBILITY]: "in_progress",
-          });
+          }));
           
           // Complete eligibility
           setTimeout(async () => {
             await apiRequest("POST", `/api/verification/step/eligibility`, {});
             
-            setVerificationStatus({
-              ...verificationStatus,
+            setVerificationStatus(prevStatus => ({
+              ...prevStatus,
               [VerificationSteps.ELIGIBILITY]: "verified",
               [VerificationSteps.BIOMETRIC]: "in_progress",
-            });
+            }));
             
             setCurrentStep("BIOMETRIC" as keyof typeof VerificationSteps);
           }, 1500);
@@ -313,11 +324,11 @@ function VerificationPageContent({
       
       if (response.ok) {
         // Update verification status
-        setVerificationStatus({
-          ...verificationStatus,
+        setVerificationStatus(prevStatus => ({
+          ...prevStatus,
           [step]: "verified",
           [nextStep]: "in_progress",
-        });
+        }));
         
         setCurrentStep(nextStep as keyof typeof VerificationSteps);
         

@@ -45,15 +45,23 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
     onSuccess: (sessions) => {
       if (sessions && sessions.length > 0) {
         // Update the UI state with the latest session information
-        const newStatus = { ...verificationStatus };
+        const newStatus = {
+          [VerificationSteps.IDENTITY]: VerificationStatus.PENDING,
+          [VerificationSteps.ELIGIBILITY]: VerificationStatus.PENDING,
+          [VerificationSteps.BIOMETRIC]: VerificationStatus.PENDING,
+          [VerificationSteps.OTP]: VerificationStatus.PENDING,
+          [VerificationSteps.READY]: VerificationStatus.PENDING
+        };
         
         // Process all sessions to build current state
         sessions.forEach(session => {
-          newStatus[session.step] = session.status;
+          // Cast the step to a valid key of VerificationSteps
+          const step = session.step as keyof typeof VerificationSteps;
+          newStatus[step] = session.status;
           
           // Set current step to the latest in-progress step
           if (session.status === VerificationStatus.IN_PROGRESS) {
-            setCurrentStep(session.step);
+            setCurrentStep(step);
           }
         });
         
@@ -77,8 +85,11 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
     onSuccess: (data) => {
       // Update verification status
       setVerificationStatus({
-        ...verificationStatus,
         [VerificationSteps.IDENTITY]: VerificationStatus.IN_PROGRESS,
+        [VerificationSteps.ELIGIBILITY]: VerificationStatus.PENDING,
+        [VerificationSteps.BIOMETRIC]: VerificationStatus.PENDING,
+        [VerificationSteps.OTP]: VerificationStatus.PENDING,
+        [VerificationSteps.READY]: VerificationStatus.PENDING
       });
       setCurrentStep(VerificationSteps.IDENTITY);
       
@@ -122,11 +133,11 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
       if (currentIndex !== -1 && currentIndex < steps.length - 1) {
         const nextStep = steps[currentIndex + 1];
         
-        setVerificationStatus({
-          ...verificationStatus,
+        setVerificationStatus(prevStatus => ({
+          ...prevStatus,
           [step]: VerificationStatus.VERIFIED,
           [nextStep]: VerificationStatus.IN_PROGRESS,
-        });
+        }));
         
         setCurrentStep(nextStep);
       }
@@ -137,7 +148,7 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
       toast({
         title: "Step Completed",
         description: `${step} verification completed successfully.`,
-        variant: "success",
+        variant: "default",
       });
     },
     onError: (error) => {
