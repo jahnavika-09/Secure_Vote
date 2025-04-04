@@ -55,11 +55,6 @@ const StepContent = ({
                   ? "Your verification was already completed. You are ready to vote!" 
                   : "Verification process completed successfully. You are now ready to vote!",
               });
-              
-              // Redirect to home page after 2 seconds
-              setTimeout(() => {
-                window.location.href = "/";
-              }, 2000);
             }
           } else {
             const errorData = await response.json();
@@ -82,23 +77,73 @@ const StepContent = ({
               <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center mb-4">
                 <CheckCircle className="h-8 w-8 text-green-600" />
               </div>
-              <h2 className="text-xl font-semibold text-gray-900 mb-2">Final Verification Step</h2>
-              <p className="text-gray-500 mb-6">
-                You've completed all verification steps. Please confirm your information and complete the verification process to become eligible to vote.
+              <h2 className="text-xl font-semibold text-gray-900 mb-2">Verification Complete!</h2>
+              <p className="text-green-600 text-lg mb-6">
+                You are now eligible to vote
               </p>
-              <div className="p-4 bg-neutral-50 rounded-lg mb-6 w-full text-left">
-                <h3 className="font-medium text-neutral-900 mb-2">Important Notice:</h3>
-                <ul className="list-disc pl-5 space-y-1 text-sm">
-                  <li>Your identity has been verified</li>
-                  <li>Your eligibility has been confirmed</li>
-                  <li>Your biometric data has been authenticated</li>
-                  <li>Your OTP verification is complete</li>
+
+              {voterProfile && (
+                <div className="w-full max-w-lg bg-white rounded-lg border border-neutral-200 p-6 mb-6">
+                  <h3 className="font-semibold text-lg text-neutral-900 mb-4">Your Voter Details</h3>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <p className="text-sm text-neutral-500">Voter ID</p>
+                      <p className="font-medium">{voterProfile.voterId}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-neutral-500">District</p>
+                      <p className="font-medium">{voterProfile.district}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-neutral-500">Precinct</p>
+                      <p className="font-medium">{voterProfile.precinct}</p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-neutral-500">Registration Date</p>
+                      <p className="font-medium">{voterProfile.registrationDate}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <div className="w-full max-w-lg bg-green-50 rounded-lg p-6 mb-6">
+                <h3 className="font-medium text-neutral-900 mb-2">Verification Status:</h3>
+                <ul className="space-y-2">
+                  <li className="flex items-center text-green-600">
+                    <Check className="h-5 w-5 mr-2" />
+                    Identity Verified
+                  </li>
+                  <li className="flex items-center text-green-600">
+                    <Check className="h-5 w-5 mr-2" />
+                    Eligibility Confirmed
+                  </li>
+                  <li className="flex items-center text-green-600">
+                    <Check className="h-5 w-5 mr-2" />
+                    Biometric Authentication Complete
+                  </li>
+                  <li className="flex items-center text-green-600">
+                    <Check className="h-5 w-5 mr-2" />
+                    Two-Factor Authentication Verified
+                  </li>
                 </ul>
-                <p className="mt-2 text-sm text-neutral-600">
-                  By clicking "Complete Verification" below, you confirm that all information provided is accurate and truthful.
-                </p>
               </div>
-              <Button onClick={readyComplete}>Complete Verification</Button>
+
+              {verificationStatus[VerificationSteps.READY] !== VerificationStatus.VERIFIED && (
+                <Button onClick={readyComplete} size="lg" className="w-full max-w-md">
+                  Confirm and Complete Verification
+                </Button>
+              )}
+
+              {verificationStatus[VerificationSteps.READY] === VerificationStatus.VERIFIED && (
+                <div className="text-center">
+                  <p className="text-lg font-medium text-green-600 mb-4">
+                    🎉 Verification Successfully Completed
+                  </p>
+                  <p className="text-sm text-neutral-600">
+                    You will be notified when voting opens. Your vote matters!
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
