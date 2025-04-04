@@ -23,11 +23,13 @@ import { useLocation } from "wouter";
 const StepContent = ({ 
   currentStep, 
   onComplete,
-  voterProfile 
+  voterProfile,
+  verificationStatus 
 }: { 
   currentStep: string;
   onComplete: () => void;
   voterProfile: any;
+  verificationStatus: Record<string, string>;
 }) => {
   switch (currentStep) {
     case VerificationSteps.IDENTITY:
@@ -533,6 +535,7 @@ function VerificationPageContent({
                   currentStep={currentStep} 
                   onComplete={handleStepComplete}
                   voterProfile={voterProfile}
+                  verificationStatus={verificationStatus}
                 />
               )}
             </div>
