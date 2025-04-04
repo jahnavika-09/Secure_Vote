@@ -36,26 +36,31 @@ export function EligibilityVerification({ onVerificationComplete }: EligibilityV
   const { toast } = useToast();
   
   // Form states
-  const [zipCode, setZipCode] = useState("");
+  const [pinCode, setPinCode] = useState("");
   const [dateOfBirth, setDateOfBirth] = useState("");
   const [voterIDNumber, setVoterIDNumber] = useState("");
+  const [aadharNumber, setAadharNumber] = useState("");
   const [citizenshipStatus, setCitizenshipStatus] = useState<string | undefined>();
   const [ageConfirmation, setAgeConfirmation] = useState(false);
   const [residencyDuration, setResidencyDuration] = useState<string | undefined>();
-  const [felonyStatus, setFelonyStatus] = useState<string | undefined>();
+  const [state, setState] = useState<string | undefined>();
+  const [constituency, setConstituency] = useState("");
+  const [criminalRecord, setCriminalRecord] = useState<string | undefined>();
   const [mentalCapacity, setMentalCapacity] = useState<string | undefined>();
   
   // Validation
   const isFormValid = () => {
     return (
-      zipCode.length === 5 &&
-      /^\d{5}$/.test(zipCode) &&
+      pinCode.length === 6 &&
+      /^\d{6}$/.test(pinCode) &&
       dateOfBirth !== "" &&
       voterIDNumber.length >= 5 &&
+      (aadharNumber.length === 12 || aadharNumber.length === 0) &&
       citizenshipStatus === "yes" &&
       ageConfirmation &&
       residencyDuration !== undefined &&
-      felonyStatus !== undefined &&
+      state !== undefined &&
+      criminalRecord !== undefined &&
       mentalCapacity === "yes"
     );
   };
@@ -83,9 +88,9 @@ export function EligibilityVerification({ onVerificationComplete }: EligibilityV
       
       // Validation checks
       const isValidAge = new Date(dateOfBirth).getFullYear() <= (new Date().getFullYear() - 18);
-      const isValidZipCode = /^\d{5}$/.test(zipCode);
+      const isValidPinCode = /^\d{6}$/.test(pinCode);
       
-      if (!isValidAge || !isValidZipCode || felonyStatus === "current" || citizenshipStatus === "no") {
+      if (!isValidAge || !isValidPinCode || criminalRecord === "current" || citizenshipStatus === "no") {
         throw new Error("Eligibility criteria not met");
       }
       
@@ -168,19 +173,19 @@ export function EligibilityVerification({ onVerificationComplete }: EligibilityV
           <div className="space-y-6">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <div className="space-y-2">
-                <Label htmlFor="zipCode">Zip Code <span className="text-red-500">*</span></Label>
+                <Label htmlFor="pinCode">PIN Code <span className="text-red-500">*</span></Label>
                 <div className="relative">
                   <MapPin className="absolute left-2 top-2.5 h-4 w-4 text-neutral-400" />
                   <Input
-                    id="zipCode"
+                    id="pinCode"
                     className="pl-8"
-                    placeholder="Enter your ZIP code"
-                    value={zipCode}
-                    onChange={(e) => setZipCode(e.target.value)}
-                    maxLength={5}
+                    placeholder="Enter your 6-digit PIN code"
+                    value={pinCode}
+                    onChange={(e) => setPinCode(e.target.value)}
+                    maxLength={6}
                   />
                 </div>
-                <p className="text-xs text-neutral-500">Your ZIP code helps verify your voting district</p>
+                <p className="text-xs text-neutral-500">Your PIN code helps verify your voting constituency</p>
               </div>
               
               <div className="space-y-2">
@@ -199,19 +204,37 @@ export function EligibilityVerification({ onVerificationComplete }: EligibilityV
               </div>
             </div>
             
-            <div className="space-y-2">
-              <Label htmlFor="voterID">Voter ID Number / Last 4 digits of SSN <span className="text-red-500">*</span></Label>
-              <div className="relative">
-                <UserCheck className="absolute left-2 top-2.5 h-4 w-4 text-neutral-400" />
-                <Input
-                  id="voterID"
-                  className="pl-8"
-                  placeholder="Enter your Voter ID or last 4 digits of SSN"
-                  value={voterIDNumber}
-                  onChange={(e) => setVoterIDNumber(e.target.value)}
-                />
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <Label htmlFor="voterID">Voter ID Number <span className="text-red-500">*</span></Label>
+                <div className="relative">
+                  <UserCheck className="absolute left-2 top-2.5 h-4 w-4 text-neutral-400" />
+                  <Input
+                    id="voterID"
+                    className="pl-8"
+                    placeholder="Enter your EPIC number"
+                    value={voterIDNumber}
+                    onChange={(e) => setVoterIDNumber(e.target.value)}
+                  />
+                </div>
+                <p className="text-xs text-neutral-500">Your Election Photo Identity Card number</p>
               </div>
-              <p className="text-xs text-neutral-500">Used to cross-reference your voter registration</p>
+              
+              <div className="space-y-2">
+                <Label htmlFor="aadhar">Aadhar Number (Optional)</Label>
+                <div className="relative">
+                  <UserCheck className="absolute left-2 top-2.5 h-4 w-4 text-neutral-400" />
+                  <Input
+                    id="aadhar"
+                    className="pl-8"
+                    placeholder="12-digit Aadhar number"
+                    value={aadharNumber}
+                    onChange={(e) => setAadharNumber(e.target.value)}
+                    maxLength={12}
+                  />
+                </div>
+                <p className="text-xs text-neutral-500">For additional verification</p>
+              </div>
             </div>
             
             <Separator />
@@ -224,7 +247,7 @@ export function EligibilityVerification({ onVerificationComplete }: EligibilityV
               
               <div className="space-y-3">
                 <div className="space-y-2">
-                  <Label>Are you a U.S. citizen? <span className="text-red-500">*</span></Label>
+                  <Label>Are you an Indian citizen? <span className="text-red-500">*</span></Label>
                   <RadioGroup value={citizenshipStatus} onValueChange={setCitizenshipStatus}>
                     <div className="flex items-center space-x-2">
                       <RadioGroupItem value="yes" id="citizen-yes" />
@@ -264,19 +287,42 @@ export function EligibilityVerification({ onVerificationComplete }: EligibilityV
                 </div>
                 
                 <div className="space-y-2">
-                  <Label>Felony Status <span className="text-red-500">*</span></Label>
-                  <RadioGroup value={felonyStatus} onValueChange={setFelonyStatus}>
+                  <Label>State <span className="text-red-500">*</span></Label>
+                  <Select value={state} onValueChange={setState}>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Select your state" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="andhra-pradesh">Andhra Pradesh</SelectItem>
+                      <SelectItem value="assam">Assam</SelectItem>
+                      <SelectItem value="bihar">Bihar</SelectItem>
+                      <SelectItem value="delhi">Delhi</SelectItem>
+                      <SelectItem value="gujarat">Gujarat</SelectItem>
+                      <SelectItem value="karnataka">Karnataka</SelectItem>
+                      <SelectItem value="kerala">Kerala</SelectItem>
+                      <SelectItem value="maharashtra">Maharashtra</SelectItem>
+                      <SelectItem value="tamil-nadu">Tamil Nadu</SelectItem>
+                      <SelectItem value="telangana">Telangana</SelectItem>
+                      <SelectItem value="uttar-pradesh">Uttar Pradesh</SelectItem>
+                      <SelectItem value="west-bengal">West Bengal</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                
+                <div className="space-y-2">
+                  <Label>Criminal Record <span className="text-red-500">*</span></Label>
+                  <RadioGroup value={criminalRecord} onValueChange={setCriminalRecord}>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="none" id="felony-none" />
-                      <Label htmlFor="felony-none">No felony conviction</Label>
+                      <RadioGroupItem value="none" id="criminal-none" />
+                      <Label htmlFor="criminal-none">No criminal record</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="completed" id="felony-completed" />
-                      <Label htmlFor="felony-completed">Completed sentence</Label>
+                      <RadioGroupItem value="completed" id="criminal-completed" />
+                      <Label htmlFor="criminal-completed">Completed sentence</Label>
                     </div>
                     <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="current" id="felony-current" />
-                      <Label htmlFor="felony-current">Currently serving sentence</Label>
+                      <RadioGroupItem value="current" id="criminal-current" />
+                      <Label htmlFor="criminal-current">Currently serving sentence</Label>
                     </div>
                   </RadioGroup>
                 </div>
@@ -328,14 +374,7 @@ export function EligibilityVerification({ onVerificationComplete }: EligibilityV
             </Button>
           )}
           
-          <Button
-            variant="outline"
-            className="w-full"
-            onClick={() => window.open('https://www.vote.org/am-i-registered-to-vote/', '_blank')}
-          >
-            <HelpCircle className="mr-2 h-4 w-4" />
-            Check Your Registration Status
-          </Button>
+
         </div>
       </div>
     </div>

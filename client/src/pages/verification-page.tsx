@@ -464,8 +464,11 @@ function VerificationPageContent({
             
             {/* Right Panel - Verification Status & Information */}
             <div>
-              {/* Voter Information Card */}
-              {voterProfile && <VoterInformation voterProfile={voterProfile} />}
+              {/* Voter Information Card - Only show after all steps are verified */}
+              {voterProfile && 
+                verificationStatus[VerificationSteps.READY] === "verified" && 
+                <VoterInformation voterProfile={voterProfile} />
+              }
               
               {/* Verification Status Card */}
               <VerificationStatusComponent verificationStatus={verificationStatus} />
