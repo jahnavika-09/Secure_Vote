@@ -149,7 +149,9 @@ export default function VerificationPage() {
     <VerificationProvider>
       <VerificationPageContent 
         voterProfile={voterProfile} 
-        isLoading={isLoadingProfile || isCreatingProfile} 
+        isLoading={isLoadingProfile || isCreatingProfile}
+        createVoterProfile={createVoterProfile}
+        isCreatingProfile={isCreatingProfile}
       />
     </VerificationProvider>
   );
@@ -169,10 +171,14 @@ function VerificationProvider({ children }: { children: React.ReactNode }) {
 // Main verification page content
 function VerificationPageContent({ 
   voterProfile, 
-  isLoading 
+  isLoading,
+  createVoterProfile,
+  isCreatingProfile
 }: { 
   voterProfile: any;
   isLoading: boolean;
+  createVoterProfile: () => Promise<void>;
+  isCreatingProfile: boolean;
 }) {
   const { toast } = useToast();
   const [hasStarted, setHasStarted] = useState(false);
