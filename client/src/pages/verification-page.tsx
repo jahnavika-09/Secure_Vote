@@ -263,7 +263,7 @@ function VerificationPageContent({
         // This is just for demo purposes
         setTimeout(async () => {
           // Complete identity
-          await apiRequest("POST", `/api/verification/step/${VerificationSteps.IDENTITY}`, {});
+          await apiRequest("POST", `/api/verification/step/identity`, {});
           
           setVerificationStatus({
             ...verificationStatus,
@@ -273,7 +273,7 @@ function VerificationPageContent({
           
           // Complete eligibility
           setTimeout(async () => {
-            await apiRequest("POST", `/api/verification/step/${VerificationSteps.ELIGIBILITY}`, {});
+            await apiRequest("POST", `/api/verification/step/eligibility`, {});
             
             setVerificationStatus({
               ...verificationStatus,
@@ -307,7 +307,9 @@ function VerificationPageContent({
       const nextStep = steps[currentIndex + 1];
       
       // Call API to move to next step
-      const response = await apiRequest("POST", `/api/verification/step/${nextStep}`, {});
+      // Convert step to lowercase for API compatibility
+      const nextStepLowercase = nextStep.toLowerCase();
+      const response = await apiRequest("POST", `/api/verification/step/${nextStepLowercase}`, {});
       
       if (response.ok) {
         // Update verification status

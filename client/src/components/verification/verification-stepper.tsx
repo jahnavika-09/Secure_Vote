@@ -96,7 +96,7 @@ export function VerificationStepper({
 
           <div className="flex items-center w-full mb-8">
             {steps.map((step, index) => (
-              <React.Fragment key={step.step}>
+              <div key={step.step} className="flex items-center">
                 {index > 0 && (
                   <div
                     className={cn(
@@ -116,7 +116,7 @@ export function VerificationStepper({
                   }
                   isCurrentStep={step.step === currentStep}
                 />
-              </React.Fragment>
+              </div>
             ))}
           </div>
         </div>
