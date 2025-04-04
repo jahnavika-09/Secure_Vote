@@ -2,11 +2,13 @@ import React, { useState, useEffect } from "react";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { Button } from "@/components/ui/button";
-import { Loader2, ArrowLeft, ArrowRight } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowRight, AlertTriangle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/use-auth";
 import { useVoterVerification } from "@/hooks/use-voter-verification";
 import { VerificationStepper } from "@/components/verification/verification-stepper";
+import { IdentityVerification } from "@/components/verification/identity-verification";
+import { EligibilityVerification } from "@/components/verification/eligibility-verification";
 import { BiometricVerification } from "@/components/verification/biometric-verification";
 import { OtpVerification } from "@/components/verification/otp-verification";
 import { VoterInformation } from "@/components/verification/voter-information";
@@ -26,6 +28,10 @@ const StepContent = ({
   onComplete: () => void;
 }) => {
   switch (currentStep) {
+    case VerificationSteps.IDENTITY:
+      return <IdentityVerification onVerificationComplete={onComplete} />;
+    case VerificationSteps.ELIGIBILITY:
+      return <EligibilityVerification onVerificationComplete={onComplete} />;
     case VerificationSteps.BIOMETRIC:
       return <BiometricVerification onVerificationComplete={onComplete} />;
     case VerificationSteps.OTP:
@@ -507,11 +513,4 @@ function VerificationPageContent({
   );
 }
 
-// AlertTriangle component
-const AlertTriangle = ({ className }: { className: string }) => (
-  <svg xmlns="http://www.w3.org/2000/svg" className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
-    <line x1="12" y1="9" x2="12" y2="13"></line>
-    <line x1="12" y1="17" x2="12.01" y2="17"></line>
-  </svg>
-);
+
