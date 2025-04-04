@@ -273,8 +273,9 @@ function VerificationPageContent({
         // Automatically complete identity and eligibility checks after short delay
         // This is just for demo purposes
         setTimeout(async () => {
-          // Complete identity
-          await apiRequest("POST", `/api/verification/step/identity`, {});
+          // Complete identity - note the current step is identity, so we need to call for the NEXT step
+          // which is eligibility
+          await apiRequest("POST", `/api/verification/step/eligibility`, {});
           
           setVerificationStatus(prevStatus => ({
             ...prevStatus,
@@ -284,7 +285,8 @@ function VerificationPageContent({
           
           // Complete eligibility
           setTimeout(async () => {
-            await apiRequest("POST", `/api/verification/step/eligibility`, {});
+            // Complete eligibility - need to call for the NEXT step which is biometric
+            await apiRequest("POST", `/api/verification/step/biometric`, {});
             
             setVerificationStatus(prevStatus => ({
               ...prevStatus,
@@ -318,8 +320,9 @@ function VerificationPageContent({
       const nextStep = steps[currentIndex + 1];
       
       // Call API to move to next step
-      // Convert step to lowercase for API compatibility
+      // The API expects the NEXT step name, not the current one being completed
       const nextStepLowercase = nextStep.toLowerCase();
+      console.log(`Completing step ${step} by calling API with next step: ${nextStepLowercase}`);
       const response = await apiRequest("POST", `/api/verification/step/${nextStepLowercase}`, {});
       
       if (response.ok) {

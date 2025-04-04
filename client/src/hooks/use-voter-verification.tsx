@@ -1,4 +1,4 @@
-import { createContext, ReactNode, useContext, useState } from "react";
+import { createContext, ReactNode, useContext, useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
@@ -6,7 +6,7 @@ import { VerificationSteps, VerificationStatus, VerificationSession, VoterProfil
 
 interface VerificationContextType {
   currentStep: string;
-  verificationStatus: Record<string, string>;
+  verificationStatus: Record<string, any>;
   voterProfile: VoterProfile | null;
   isLoading: boolean;
   startVerification: () => void;
@@ -19,7 +19,8 @@ const VerificationContext = createContext<VerificationContextType | null>(null);
 export function VerificationProvider({ children }: { children: ReactNode }) {
   const { toast } = useToast();
   const [currentStep, setCurrentStep] = useState<string>(VerificationSteps.IDENTITY);
-  const [verificationStatus, setVerificationStatus] = useState<Record<string, string>>({
+  // Using any string for the status value to handle values from backend and constants
+  const [verificationStatus, setVerificationStatus] = useState<Record<string, any>>({
     [VerificationSteps.IDENTITY]: VerificationStatus.PENDING,
     [VerificationSteps.ELIGIBILITY]: VerificationStatus.PENDING,
     [VerificationSteps.BIOMETRIC]: VerificationStatus.PENDING,
@@ -30,52 +31,42 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
   // Fetch voter profile
   const { data: voterProfile, isLoading: isLoadingProfile } = useQuery<VoterProfile>({
     queryKey: ["/api/voter-profile"],
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to load voter profile. Please try again.",
-        variant: "destructive",
-      });
-    },
   });
 
   // Fetch verification sessions
   const { data: verificationSessions, isLoading: isLoadingSessions } = useQuery<VerificationSession[]>({
     queryKey: ["/api/verification"],
-    onSuccess: (sessions) => {
-      if (sessions && sessions.length > 0) {
-        // Update the UI state with the latest session information
-        const newStatus = {
-          [VerificationSteps.IDENTITY]: VerificationStatus.PENDING,
-          [VerificationSteps.ELIGIBILITY]: VerificationStatus.PENDING,
-          [VerificationSteps.BIOMETRIC]: VerificationStatus.PENDING,
-          [VerificationSteps.OTP]: VerificationStatus.PENDING,
-          [VerificationSteps.READY]: VerificationStatus.PENDING
-        };
-        
-        // Process all sessions to build current state
-        sessions.forEach(session => {
-          // Cast the step to a valid key of VerificationSteps
-          const step = session.step as keyof typeof VerificationSteps;
-          newStatus[step] = session.status;
-          
-          // Set current step to the latest in-progress step
-          if (session.status === VerificationStatus.IN_PROGRESS) {
-            setCurrentStep(step);
-          }
-        });
-        
-        setVerificationStatus(newStatus);
-      }
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to load verification status. Please try again.",
-        variant: "destructive",
-      });
-    },
   });
+
+  // Process verification sessions when data changes
+  useEffect(() => {
+    if (verificationSessions && verificationSessions.length > 0) {
+      // Update the UI state with the latest session information
+      const newStatus: Record<string, any> = {
+        [VerificationSteps.IDENTITY]: VerificationStatus.PENDING,
+        [VerificationSteps.ELIGIBILITY]: VerificationStatus.PENDING,
+        [VerificationSteps.BIOMETRIC]: VerificationStatus.PENDING,
+        [VerificationSteps.OTP]: VerificationStatus.PENDING,
+        [VerificationSteps.READY]: VerificationStatus.PENDING
+      };
+      
+      // Process all sessions to build current state
+      for (const session of verificationSessions) {
+        // Cast the step to a valid key of VerificationSteps
+        const step = session.step as keyof typeof VerificationSteps;
+        // Ensure status is one of the valid verification statuses
+        newStatus[step] = session.status as (typeof VerificationStatus)[keyof typeof VerificationStatus];
+        
+        // Set current step to the latest in-progress step
+        if (session.status === VerificationStatus.IN_PROGRESS) {
+          setCurrentStep(step);
+        }
+      }
+      
+      // Set the verification status
+      setVerificationStatus(newStatus);
+    }
+  }, [verificationSessions]);
 
   const startVerificationMutation = useMutation({
     mutationFn: async () => {
@@ -165,7 +156,19 @@ export function VerificationProvider({ children }: { children: ReactNode }) {
   };
 
   const completeStep = (step: string) => {
-    completeStepMutation.mutate(step);
+    // Get the next step to pass to the mutation
+    const steps = Object.values(VerificationSteps);
+    const currentIndex = steps.indexOf(step as any);
+    if (currentIndex === -1 || currentIndex === steps.length - 1) {
+      console.error("Invalid step or last step reached");
+      return;
+    }
+    
+    const nextStep = steps[currentIndex + 1];
+    console.log(`In hook: Completing step ${step} by passing next step ${nextStep}`);
+    
+    // Mutate with the next step
+    completeStepMutation.mutate(nextStep);
   };
 
   const isStepCompleted = (step: string) => {
