@@ -140,12 +140,35 @@ const StepContent = ({
 
               {verificationStatus[VerificationSteps.READY] === VerificationStatus.VERIFIED && (
                 <div className="text-center">
-                  <p className="text-lg font-medium text-green-600 mb-4">
-                    🎉 Verification Successfully Completed
-                  </p>
-                  <p className="text-sm text-neutral-600">
-                    You will be notified when voting opens. Your vote matters!
-                  </p>
+                  <div className="bg-green-50 rounded-lg p-6 mb-6">
+                    <p className="text-lg font-medium text-green-600 mb-4">
+                      🎉 Verification Successfully Completed
+                    </p>
+                    <p className="text-sm text-green-600 mb-6">
+                      You are now eligible to vote. Cast your vote below!
+                    </p>
+                    <Button
+                      onClick={async () => {
+                        try {
+                          await apiRequest("POST", "/api/vote/cast", {});
+                          toast({
+                            title: "Vote Cast Successfully",
+                            description: "Thank you for participating in the election!",
+                            variant: "default",
+                          });
+                        } catch (error) {
+                          toast({
+                            title: "Error",
+                            description: "Failed to cast vote. Please try again.",
+                            variant: "destructive",
+                          });
+                        }
+                      }}
+                      className="w-full bg-green-600 hover:bg-green-700"
+                    >
+                      Cast Your Vote
+                    </Button>
+                  </div>
                 </div>
               )}
             </div>

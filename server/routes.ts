@@ -601,6 +601,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Voting endpoint
+  app.post("/api/vote/cast", async (req, res) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).json({ message: "Not authenticated" });
+    }
+    
+    try {
+      // Get voter profile and verification status
+      const voterProfile = await storage.getVoterProfileByUserId(req.user!.id);
+      const sessions = await storage.getVerificationSessionsByUserId(req.user!.id);
+      const latestSession = sessions[0];
+      
+      if (!voterProfile) {
+        return res.status(400).json({ message: "Voter profile required" });
+      }
+      
+      if (!latestSession || 
+          latestSession.step !== VerificationSteps.READY || 
+          latestSession.status !== VerificationStatus.VERIFIED) {
+        return res.status(403).json({ message: "Verification required before voting" });
+      }
+      
+      // Record vote in blockchain
+      const blockchain = await Blockchain.getInstance();
+      await blockchain.addBlock({
+        type: "vote_cast",
+        userId: req.user!.id,
+        voterId: voterProfile.voterId,
+        timestamp: Math.floor(Date.now() / 1000)
+      });
+      
+      res.json({ success: true, message: "Vote cast successfully" });
+    } catch (error) {
+      res.status(500).json({ message: "Server error" });
+    }
+  });
+
   // Admin endpoints for monitoring
   app.get("/api/admin/sessions", async (req, res) => {
     if (!req.isAuthenticated() || req.user!.role !== "admin") {
