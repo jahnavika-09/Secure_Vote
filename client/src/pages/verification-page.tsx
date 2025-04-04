@@ -22,10 +22,12 @@ import { useLocation } from "wouter";
 // Component to render based on the current verification step
 const StepContent = ({ 
   currentStep, 
-  onComplete 
+  onComplete,
+  voterProfile 
 }: { 
   currentStep: string;
   onComplete: () => void;
+  voterProfile: any;
 }) => {
   switch (currentStep) {
     case VerificationSteps.IDENTITY:
@@ -529,7 +531,8 @@ function VerificationPageContent({
               ) : (
                 <StepContent 
                   currentStep={currentStep} 
-                  onComplete={handleStepComplete} 
+                  onComplete={handleStepComplete}
+                  voterProfile={voterProfile}
                 />
               )}
             </div>
