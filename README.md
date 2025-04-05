@@ -1,4 +1,4 @@
-# WaitlistWizard - Secure Voting System
+# ZecureVote - Secure Voting System
 
 A secure blockchain-based voting system with multi-factor authentication for maximum security and transparency.
 
